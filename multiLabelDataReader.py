@@ -3,6 +3,8 @@ import re
 import random
 from os import path
 from ltlib.defaults import  Defaults
+from ltlib.data import Document, Sentence, Token, Dataset,Datasets
+
 import numpy as np
 
 
@@ -40,8 +42,12 @@ class MultiLabelDataReader(object):
         labelsList = list(allLabels)
         labelsList.sort()
         targets = self.getTargets(labelsList,labels)
-        return tokens,labels,targets
 
+        docs = []
+        for i in range(len(tokens)):
+            doc = self.make_document(tokens[i],labels[i],targets[i])
+            docs.append(doc)
+        return docs
 
 
     # datasetType is "train", "devel", "test", or "all" (default)
@@ -49,9 +55,11 @@ class MultiLabelDataReader(object):
         dataetTypeList = ["train","devel","test"]
         if not all([ds in dataetTypeList for ds in datasetNames]):
             raise BaseException("dataset argument must be 'train', 'devel', or 'test'")
-
-        for ds in datasetNames:
-            return  self.loadData(ds)
+        datasets = []
+        for dname in datasetNames:
+            docs =  self.loadData(dname)
+            datasets.append(Dataset(documents=docs, name=dname))
+        return Datasets(datasets)
 
 
     def processLine(self, line):
@@ -63,12 +71,23 @@ class MultiLabelDataReader(object):
         labels = splits[1].strip().split()
         return tokens, labels
 
-
+    def make_document(self, tokens, labels, target):
+        """Return Document object initialized with given token texts."""
+        tokens = [Token(t) for t in tokens]
+        # We don't have sentence splitting, but the data structure expects
+        # Documents to contain Sentences which in turn contain Tokens.
+        # Create a dummy sentence containing all document tokens to work
+        # around this constraint.
+        sentences = [Sentence(tokens=tokens)]
+        doc =  Document(target_str=str(labels), sentences=sentences)
+        doc.set_target(target)
+        return doc
 
 
 if __name__ == '__main__':
-    reader = MultiLabelDataReader("/homes/sb895/multilabel-nn/data/doc/hoc/")
+    reader = MultiLabelDataReader("/home/sb/multilabel-nn/data/doc/hoc/")
 
     x,l,y = reader.load()
-    print str(l[222])
-    print str(y[222])
+    print str(l[116])
+    print str(y[116])
+
