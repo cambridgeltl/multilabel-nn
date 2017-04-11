@@ -22,7 +22,10 @@ class DataItem(object):
         target_map: mapping from target string to numeric representation.
     """
 
-    def __init__(self, data=None, target_str=None):
+    def __init__(self, id, data=None, target_str=None, target_indx=None):
+        if (id == None):
+            raise BaseException("id cannot be None")
+
         self._data = data
         self._target_str = target_str
         self.target = None
@@ -31,6 +34,8 @@ class DataItem(object):
         self.feature = {}
         self.input = {}
         self._target_map = {}
+        self._target_indx= target_indx
+        self.id = id
 
     @property
     def data(self):
@@ -60,7 +65,7 @@ class DataItem(object):
     def add_input(self, function, key):
         self.input[key] = function(self)
 
-    def set_target_map(self, target_map, map_target=True):
+    def set_target_map(self, target_map, map_target=False):
         """Set map from target string to numeric representation.
 
         Args:
@@ -400,6 +405,35 @@ class Document(TreeDataItem):
     def tokens(self):
         return self.find(instance_of=Token)
 
+    # returns [TP,FP,TN,FN] vector when there's a target index provided in the dataitem (i.e. indepndent classification)
+
+    def get_binary_contingency(self, expected, pred):
+        tp = int(expected == 1.0 and pred == 1.0)
+        fp = int(expected == 0.0 and pred == 1.0)
+        tn = int(expected == 0.0 and pred == 0.0)
+        fn = int(expected == 1.0 and pred == 0.0)
+        return tp,fp,tn,fn
+
+    def _eval_single(self):
+        expected = self.target[self._target_indx]
+        pred = self.prediction
+        return np.array(self.get_binary_contingency(expected, pred))
+
+    def _eval_joint(self):
+        if (len(self.target) != len(self.prediction)):
+            raise BaseException("the length of target %d is not equal to length of prediction %d" %(len(self.target),len(self.prediction)))
+        return np.array([self.get_binary_contingency(self.target[i],self.prediction[i]) for i in range(len(self.target))])
+
+    # returns [TP,FP,TN,FN] vector
+    def eval(self):
+        if self.prediction == None:
+            raise BaseException("prediction for ducment is none for document id={}" % str(self.id))
+        if self._target_indx == None:
+            return self._eval_joint()
+        else:
+            return self._eval_single()
+
+
 class Dataset(TreeDataItem):
     """A dataset consisting of Documents."""
 
@@ -426,6 +460,21 @@ class Dataset(TreeDataItem):
     @property
     def tokens(self):
         return self.find(instance_of=Token)
+
+    #calc p,r,f
+    def eval(self):
+        tot =np.zeros(self.children[0],eval().shape)
+        for doc in self.children:
+            tot += doc.eval()
+        p = tot[0]/(tot[0]+tot[1])
+        r = tot[0]/(tot[0]+tot[3])
+        f = 2.0*p*r / (p + r)
+        a= tot[0] / (tot[0] + tot[1] + tot[2] +tot[3])
+
+        return p,r,f,a
+
+
+
 
 class Datasets(TreeDataItem):
     """Training, development and test Datasets."""
