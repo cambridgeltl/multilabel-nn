@@ -22,10 +22,7 @@ class DataItem(object):
         target_map: mapping from target string to numeric representation.
     """
 
-    def __init__(self, id, data=None, target_str=None, target_indx=None):
-        if (id == None):
-            raise BaseException("id cannot be None")
-
+    def __init__(self, id=None, data=None, target_str=None, target_indx=None):
         self._data = data
         self._target_str = target_str
         self.target = None

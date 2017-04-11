@@ -20,6 +20,7 @@ from keras.models import Model
 from keras.layers import Input, Embedding, Flatten, Reshape, Dense, Dropout
 from keras.layers import Convolution2D, MaxPooling2D
 from keras.regularizers import l2
+from multiLabelDataReader import MultiLabelDataReader
 
 from config import Defaults
 
@@ -77,7 +78,7 @@ def make_thresholded_mapper(threshold):
 
 def main(argv):
     config = cli_settings(['datadir', 'wordvecs'], Defaults)
-    data = load_dir(config.datadir, config)
+    data = MultiLabelDataReader(config.datadir).load()#load_dir(config.datadir, config)
 
     force_oov = set(l.strip() for l in open(config.oov)) if config.oov else None
     w2v = NormEmbeddingFeature.from_file(config.wordvecs,
@@ -191,4 +192,6 @@ def main(argv):
         )
 
 if __name__ == '__main__':
+    sys.argv.append("/home/sb/multilabel-nn/data/doc/hoc/") # path to data
+    sys.argv.append("<path to embeddings>")
     sys.exit(main(sys.argv))

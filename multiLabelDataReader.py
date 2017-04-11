@@ -51,7 +51,7 @@ class MultiLabelDataReader(object):
 
 
     # datasetType is "train", "devel", "test", or "all" (default)
-    def load(self, datasetNames=["train", "devel"], randomize=False):
+    def load(self, datasetNames=["train", "devel","test"], randomize=False):
         dataetTypeList = ["train","devel","test"]
         if not all([ds in dataetTypeList for ds in datasetNames]):
             raise BaseException("dataset argument must be 'train', 'devel', or 'test'")
@@ -59,7 +59,7 @@ class MultiLabelDataReader(object):
         for dname in datasetNames:
             docs =  self.loadData(dname)
             datasets.append(Dataset(documents=docs, name=dname))
-        return Datasets(datasets)
+        return Datasets(datasets[0],datasets[1],datasets[2])
 
 
     def processLine(self, line):
