@@ -77,9 +77,10 @@ def make_thresholded_mapper(threshold):
     return thresholded_mapper
 
 def main(argv):
-    config = cli_settings(['datadir', 'wordvecs'], Defaults)
-    data = MultiLabelDataReader(config.datadir).load()#load_dir(config.datadir, config)
+    config = cli_settings(['datadir', 'wordvecs', 'index'], Defaults)
+    data = MultiLabelDataReader(config.datadir).load(config.index)#load_dir(config.datadir, config)
 
+    print ("finished reading data")
     force_oov = set(l.strip() for l in open(config.oov)) if config.oov else None
     w2v = NormEmbeddingFeature.from_file(config.wordvecs,
                                          max_rank=config.max_vocab_size,
@@ -87,6 +88,7 @@ def main(argv):
                                          force_oov=force_oov,
                                          name='text')
     # Add word vector features to tokens
+    print ("finished reading embeddings")
     features = [w2v]
     data.tokens.add_features(features)
     # Summarize word vector featurizer statistics (OOV etc.)
@@ -142,20 +144,20 @@ def main(argv):
     optimizer = get_optimizer(config)
     model.compile(
         loss='categorical_crossentropy',
-        optimizer=optimizer,
-        metrics=['accuracy', f1, prec, rec]
+        optimizer=optimizer
+        #metrics=['accuracy', f1, prec, rec]
     )
 
     weights, results = [], {}
     callbacks = [
         EpochTimer(),
         WeightStore(weights),
-        document_evaluator(data.train, label='train', results=results),
-        document_evaluator(data.devel, label='devel', results=results),
+        #document_evaluator(data.train, label='train', results=results),
+        #document_evaluator(data.devel, label='devel', results=results),
     ]
-    if config.test:
-        callbacks.append(document_evaluator(data.test, label='test',
-                                            results=results))
+    #if config.test:
+        #callbacks.append(document_evaluator(data.test, label='test',
+     #                                       results=results))
 
     hist = model.fit(
         data.train.documents.inputs,
@@ -192,6 +194,7 @@ def main(argv):
         )
 
 if __name__ == '__main__':
-    sys.argv.append("/home/sb/multilabel-nn/data/doc/hoc/") # path to data
-    sys.argv.append("<path to embeddings>")
+    sys.argv.append("/homes/sb895/multilabel-nn/data/doc/hoc/") # path to data
+    sys.argv.append("/homes/sb895/PMC_bioASQ.bin")
+    sys.argv.append("6")
     sys.exit(main(sys.argv))

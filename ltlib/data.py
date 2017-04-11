@@ -49,13 +49,13 @@ class DataItem(object):
 
     def set_target(self, target):
         if self._target_indx != None:
-            self.target = np.array( [1.0,0.0] if target[self._target_indx] else [0.0,1.0])
+            self.target = np.array( [1,0] if target[self._target_indx] else [0,1])
         else:
             self.target = target
 
     def set_prediction(self, prediction):
         if self._target_indx != None: #predictiaon for the binary independent labels
-            self.prediction = np.array([1.0,0.0] if(np.sum(np.array([1.0,0.0])*prediction) > np.sum(np.array([0.0,1.0])*prediction)) else[0.0,1.0])
+            self.prediction = np.array([1,0] if(np.sum(np.array([1,0])*prediction) > np.sum(np.array([0,1])*prediction)) else[0,1])
         else:    #prediction for on-hot-like label
             self.prediction = prediction
 
@@ -387,12 +387,14 @@ class Sentence(TreeDataItem):
 class Document(TreeDataItem):
     """A document consisting of Sentences."""
 
-    def __init__(self, target_str=None, dataset=None, position=None,
+    def __init__(self, id, target_idx=None,target_str=None, dataset=None, position=None,
                  sentences=None):
         super(Document, self).__init__(
             data={}, target_str=target_str, parent=dataset,
             position=position, children=sentences
         )
+        self.id=id
+        self._target_indx=target_idx
         if any(not isinstance(c, Sentence) for c in self.children):
             raise ValueError('non-Sentence child in Document')
 
@@ -411,10 +413,10 @@ class Document(TreeDataItem):
     # returns [TP,FP,TN,FN] vector when there's a target index provided in the dataitem (i.e. indepndent classification)
 
     def get_binary_contingency(self, expected, pred):
-        tp = int(expected == 1.0 and pred == 1.0)
-        fp = int(expected == 0.0 and pred == 1.0)
-        tn = int(expected == 0.0 and pred == 0.0)
-        fn = int(expected == 1.0 and pred == 0.0)
+        tp = int(expected == 1 and pred == 1)
+        fp = int(expected == 0 and pred == 1)
+        tn = int(expected == 0 and pred == 0)
+        fn = int(expected == 1 and pred == 0)
         return tp,fp,tn,fn
 
     def _eval_single(self):

@@ -187,6 +187,5 @@ def document_evaluator(dataset, label=None, writer=None, results=None):
     """Return appropriate evaluator callback for dataset."""
     callbacks = []
     callbacks.append(Predictor(dataset.documents))
-    callbacks.append(DocumentEvaluator(dataset, label=label, writer=writer,
-                                       results=results))
+    #callbacks.append(DocumentEvaluator(dataset, label=label, writer=writer, results=results))
     return CallbackChain(callbacks)
