@@ -51,10 +51,16 @@ class DataItem(object):
         return self._target_map
 
     def set_target(self, target):
-        self.target = target
+        if self._target_indx != None:
+            self.target = np.array( [1.0,0.0] if target[self._target_indx] else [0.0,1.0])
+        else:
+            self.target = target
 
     def set_prediction(self, prediction):
-        self.prediction = prediction
+        if self._target_indx != None: #predictiaon for the binary independent labels
+            self.prediction = np.array([1.0,0.0] if(np.sum(np.array([1.0,0.0])*prediction) > np.sum(np.array([0.0,1.0])*prediction)) else[0.0,1.0])
+        else:    #prediction for on-hot-like label
+            self.prediction = prediction
 
     def set_prediction_str(self, prediction_str):
         self.prediction_str = prediction_str
@@ -257,7 +263,7 @@ class DataItemSequence(object):
         for item in self._items:
             item.set_target_map(target_map)
 
-    def set_predictions(self, predictions, map_to_str=True, mapper=None):
+    def set_predictions(self, predictions, map_to_str=False, mapper=None):
         """Set prediction for items.
 
         Args:
@@ -415,19 +421,20 @@ class Document(TreeDataItem):
         return tp,fp,tn,fn
 
     def _eval_single(self):
-        expected = self.target[self._target_indx]
-        pred = self.prediction
+        expected = self.target[0]
+        pred = self.prediction[0]
         return np.array(self.get_binary_contingency(expected, pred))
 
     def _eval_joint(self):
-        if (len(self.target) != len(self.prediction)):
-            raise BaseException("the length of target %d is not equal to length of prediction %d" %(len(self.target),len(self.prediction)))
         return np.array([self.get_binary_contingency(self.target[i],self.prediction[i]) for i in range(len(self.target))])
 
     # returns [TP,FP,TN,FN] vector
     def eval(self):
         if self.prediction == None:
             raise BaseException("prediction for ducment is none for document id={}" % str(self.id))
+        if (len(self.target) != len(self.prediction)):
+            raise BaseException("the length of target %d is not equal to length of prediction %d" % (
+            len(self.target), len(self.prediction)))
         if self._target_indx == None:
             return self._eval_joint()
         else:
