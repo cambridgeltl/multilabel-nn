@@ -54,12 +54,14 @@ class DataItem(object):
             self.target = target
 
     def set_prediction(self, prediction):
+        #print ("setting pred in dataitem with: " + str(prediction))
         if self._target_indx != None: #predictiaon for the binary independent labels
             self.prediction = np.array([1,0] if(np.sum(np.array([1,0])*prediction) > np.sum(np.array([0,1])*prediction)) else[0,1])
         else:    #prediction for on-hot-like label
             self.prediction = prediction
 
     def set_prediction_str(self, prediction_str):
+
         self.prediction_str = prediction_str
 
     def add_feature(self, function, key):
@@ -430,7 +432,8 @@ class Document(TreeDataItem):
     # returns [TP,FP,TN,FN] vector
     def eval(self):
         if self.prediction == None:
-            raise BaseException("prediction for ducment is none for document id={}" % str(self.id))
+            print "no prediction for document id= %s" % str(self.id)
+            return
         if (len(self.target) != len(self.prediction)):
             raise BaseException("the length of target %d is not equal to length of prediction %d" % (
             len(self.target), len(self.prediction)))
@@ -469,7 +472,8 @@ class Dataset(TreeDataItem):
 
     #calc p,r,f
     def eval(self):
-        tot =np.zeros(self.children[0],eval().shape)
+        if self.children[0].eval()== None: return
+        tot =np.zeros(self.children[0].eval().shape)
         for doc in self.children:
             tot += doc.eval()
         p = tot[0]/(tot[0]+tot[1])

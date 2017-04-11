@@ -152,8 +152,8 @@ def main(argv):
     callbacks = [
         EpochTimer(),
         WeightStore(weights),
-        #document_evaluator(data.train, label='train', results=results),
-        #document_evaluator(data.devel, label='devel', results=results),
+        document_evaluator(data.train, label='train', results=results),
+        document_evaluator(data.devel, label='devel', results=results),
     ]
     #if config.test:
         #callbacks.append(document_evaluator(data.test, label='test',

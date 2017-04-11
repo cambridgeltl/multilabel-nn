@@ -178,7 +178,8 @@ class DocumentEvaluator(EvaluatorCallback):
                                                 results)
 
     def evaluation_results(self):
-        return evaluate_classification(self.dataset.documents)
+        print("Evaluation----------->::  " + str(self.dataset.eval()))
+        return self.dataset.eval()#evaluate_classification(self.dataset.documents)
 
     def evaluation_summary(self, results):
         return summarize_classification(results)
@@ -187,5 +188,6 @@ def document_evaluator(dataset, label=None, writer=None, results=None):
     """Return appropriate evaluator callback for dataset."""
     callbacks = []
     callbacks.append(Predictor(dataset.documents))
-    #callbacks.append(DocumentEvaluator(dataset, label=label, writer=writer, results=results))
+    callbacks.append(DocumentEvaluator(dataset, label=label, writer=writer, results=results))
+
     return CallbackChain(callbacks)
