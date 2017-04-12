@@ -77,8 +77,8 @@ def make_thresholded_mapper(threshold):
     return thresholded_mapper
 
 def main(argv):
-    config = cli_settings(['datadir', 'wordvecs', 'index'], Defaults)
-    data = MultiLabelDataReader(config.datadir).load(config.index)#load_dir(config.datadir, config)
+    config = cli_settings(['datadir', 'wordvecs'], Defaults)
+    data = MultiLabelDataReader(config.datadir).load()#load_dir(config.datadir, config)
 
     print ("finished reading data")
     force_oov = set(l.strip() for l in open(config.oov)) if config.oov else None
@@ -134,7 +134,7 @@ def main(argv):
     out = Dense(
         data.documents.target_dim,
         W_regularizer=W_regularizer(config),
-        activation='softmax'
+        activation='sigmoid'
         )(seq)
     model = Model(input=inputs, output=out)
 
@@ -196,7 +196,7 @@ def main(argv):
 
 if __name__ == '__main__':
     home = "/home/sb/"
-    sys.argv.append(home+"multilabel-nn/data/doc/hoc/") # path to data
+    sys.argv.append(home+"multilabel-nn/data/sen/hoc/") # path to data
     sys.argv.append(home+ "PMC_bioASQ.bin")
-    sys.argv.append("0")
+
     sys.exit(main(sys.argv))

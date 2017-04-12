@@ -1,7 +1,7 @@
 class Defaults(object):
     encoding = 'utf-8'
-    filter_sizes = [3]
-    filter_nums = [100]
+    filter_sizes = [3,4,5]
+    filter_nums = [100,100,100]
     hidden_sizes = []
     batch_size = 50
     drop_prob = 0.5    # None for no dropout
@@ -10,8 +10,8 @@ class Defaults(object):
     #token_regex = r'(\S+)'    # regular expression for whitespace tokenization
     token_regex = r'([^\W_]+|.)'    # fine-grained tokenization
     random_seed = 0xC001533D
-    max_vocab_size = 10000    # how many words to read from the embedding
-    epochs = 20
+    max_vocab_size = 2000000    # how many words to read from the embedding
+    epochs = 100
     verbosity = 1
     doc_size = 500
     optimizer = 'adam'
