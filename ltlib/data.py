@@ -1,7 +1,7 @@
 import numpy as np
 
 from itertools import chain
-
+from config import Defaults
 from bidict import Bidict
 
 # TODO: it's strange (but convenient) that each DataItem holds target_map.
@@ -42,6 +42,9 @@ class DataItem(object):
     def target_str(self):
         return self._target_str
 
+    def get_target(self):
+        return self.target
+
     @property
     def target_map(self):
         # TODO consider making map immutable.
@@ -49,16 +52,25 @@ class DataItem(object):
 
     def set_target(self, target):
         if self._target_indx != None:
+            #print str(target)
+            #print str(self._target_indx)
+            #print str(target[self._target_indx])
             self.target = np.array( [1,0] if target[self._target_indx] else [0,1])
         else:
             self.target = target
+        #print str(self.target)
 
     def set_prediction(self, prediction):
-        #print ("setting pred in dataitem with: " + str(prediction))
+        #print (str(prediction))
+        self.rawprediction = prediction
         if self._target_indx != None: #predictiaon for the binary independent labels
             self.prediction = np.array([1,0] if(np.sum(np.array([1,0])*prediction) > np.sum(np.array([0,1])*prediction)) else[0,1])
         else:    #prediction for on-hot-like label
-            self.prediction = prediction
+            self.set_prediction_by_threshold(Defaults.sigmoid_threshold)
+
+    def set_prediction_by_threshold(self,threshold):
+        self.prediction= np.array([int(x > threshold) for x in self.rawprediction])
+        #print str(self.prediction)
 
     def set_prediction_str(self, prediction_str):
 
@@ -396,7 +408,8 @@ class Document(TreeDataItem):
             position=position, children=sentences
         )
         self.id=id
-        self._target_indx=target_idx
+        if target_idx != None:
+            self._target_indx= int(target_idx)
         if any(not isinstance(c, Sentence) for c in self.children):
             raise ValueError('non-Sentence child in Document')
 
@@ -424,6 +437,7 @@ class Document(TreeDataItem):
     def _eval_single(self):
         expected = self.target[0]
         pred = self.prediction[0]
+        #print(np.array(self.get_binary_contingency(expected, pred)))
         return np.array(self.get_binary_contingency(expected, pred))
 
     def _eval_joint(self):
@@ -470,18 +484,46 @@ class Dataset(TreeDataItem):
     def tokens(self):
         return self.find(instance_of=Token)
 
+    def get_targets(self):
+        return [child.get_target() for child in self.children]
     #calc p,r,f
     def eval(self):
         if self.children[0].eval()== None: return
         tot =np.zeros(self.children[0].eval().shape)
         for doc in self.children:
             tot += doc.eval()
+        tot = tot.transpose()
+
+        #print str(tot)
         p = tot[0]/(tot[0]+tot[1])
         r = tot[0]/(tot[0]+tot[3])
         f = 2.0*p*r / (p + r)
-        a= tot[0] / (tot[0] + tot[1] + tot[2] +tot[3])
+        a= (tot[0]+tot[2]) / (tot[0] + tot[1] + tot[2] +tot[3])
+        s = tot[0] + tot[1] + tot[2] + tot[3]
+        tp = np.sum(tot[0])
+        fp = np.sum(tot[1])
+        tn = np.sum(tot[2])
+        fn = np.sum(tot[3])
+        p_micro = tp/(tp+fp)
+        r_micro = tp/(tp+fn)
+        f_micro = 2*p_micro*r_micro/(p_micro+r_micro)
+        #print("tot: " + str(tot))
+        print("f: "+ str(f_micro))
+        print("r: "+ str(r_micro))
+        print("p: "+ str(p_micro))
+        print("a: "+ str(np.average(a)))
+        #print("s: "+ str(s))
 
-        return p,r,f,a
+        res = {}
+        res["acc"] = np.average(a)
+        res["fscore"] = f_micro#np.average(f)
+        res["p"] = p_micro#np.average(p)
+        res["r"] = r_micro#np.average(r)
+        res["tp"] = tp#np.average(tot[0])
+        res["fp"] = fp#np.average(tot[1])
+        res["tn"] = tn#np.average(tot[2])
+        res["fn"] = fn#np.average(tot[3])
+        return res
 
 
 
@@ -492,14 +534,25 @@ class Datasets(TreeDataItem):
     # TODO: this inherits target_str, target and feature from DataItem, but
     # these don't really make any sense at this level.
 
-    def __init__(self, train, devel, test):
-        super(Datasets, self).__init__(children=[train, devel, test])
-        self.train = train
-        self.devel = devel
-        self.test = test
-        self.sets = (self.train, self.devel, self.test)
+    def __init__(self, train=None, devel=None, test=None):
+        self.sets=[]
+        if train!=None:
+            self.sets.append(train)
+            self.train = train
+        if devel!=None:
+            self.sets.append(devel)
+            self.devel = devel
+        if test!=None:
+            self.sets.append(test)
+            self.test = test
+        super(Datasets, self).__init__(children=self.sets)
+
+
+
+
         for s in self.sets:
-            s.parent = self
+            if s != None:
+                s.parent = self
         self.make_targets()
 
     @property

@@ -196,7 +196,7 @@ def main(argv):
 
 if __name__ == '__main__':
     home = "/home/sb/"
-    sys.argv.append(home+"multilabel-nn/data/sen/hoc/") # path to data
-    sys.argv.append(home+ "PMC_bioASQ.bin")
+    sys.argv.append(Defaults.input_path)  # path to data
+    sys.argv.append(Defaults.embedding_path)
 
     sys.exit(main(sys.argv))
