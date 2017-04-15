@@ -32,7 +32,7 @@ class MultiLabelDataReader(object):
 
 
 
-    def loadData(self,datasetName,target_indx):
+    def loadData(self,datasetName,target_indx=None):
         tokens =[]
         labels = []
         ids = []
@@ -63,13 +63,13 @@ class MultiLabelDataReader(object):
         dataetTypeList = ["train","devel","test"]
         if not all([ds in dataetTypeList for ds in datasetNames]):
             raise BaseException("dataset argument must be 'train', 'devel', or 'test'")
-        datasets = []
+        datasets = {}
 
         for dname in datasetNames:
             #print "loading: " + dname
             docs =  self.loadData(dname,target_indx)
-            datasets.append(Dataset(documents=docs, name=dname))
-        return Datasets(datasets[0],datasets[1],datasets[2])
+            datasets[dname]=Dataset(documents=docs, name=dname)
+        return Datasets(**datasets)
 
 
     def processLine(self, line):
@@ -90,6 +90,7 @@ class MultiLabelDataReader(object):
         # Create a dummy sentence containing all document tokens to work
         # around this constraint.
         sentences = [Sentence(tokens=tokens)]
+
         doc =  Document(id=docid,target_idx=target_indx,target_str=str(labels), sentences=sentences)
         doc.set_target(target)
         return doc

@@ -1772,4 +1772,4 @@
 12865633-1	The aim of this study was to examine the chronological and spatial patterns of osteosarcoma growth and invasion of local tissue structures including epiphyseal cartilage .	
 12865633-0	OBJECTIVES Epiphyseal cartilage is a barrier to osteosarcoma invasion , however the mechanisms behind this resistance remain unclear .	
 12865633-3	We compared the pattern of osteosarcoma penetration of epiphyseal cartilage with the expression pattern of two potent mediators of angiogenesis ; proangiogenic vascular endothelial growth factor ( VEGF ) and antiangiogenic pigment epithelium-derived factor ( PEDF ) .	
-12865633-2	METHODS We used an in vivomouse model of osteosarcoma to histologically examine tumors at different stages of disease progression .
+12865633-2	METHODS We used an in vivomouse model of osteosarcoma to histologically examine tumors at different stages of disease progression .	

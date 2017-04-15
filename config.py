@@ -1,7 +1,9 @@
 class Defaults(object):
+    home = "/home/sb895/"
     encoding = 'utf-8'
-    filter_sizes = [3]
-    filter_nums = [100]
+    filter_sizes = [3,4,5]
+    filter_nums = [200,200,200]
+    sigmoid_threshold = 0.7
     hidden_sizes = []
     batch_size = 50
     drop_prob = 0.5    # None for no dropout
@@ -10,10 +12,10 @@ class Defaults(object):
     #token_regex = r'(\S+)'    # regular expression for whitespace tokenization
     token_regex = r'([^\W_]+|.)'    # fine-grained tokenization
     random_seed = 0xC001533D
-    max_vocab_size = 10000    # how many words to read from the embedding
-    epochs = 20
+    max_vocab_size = 2000000   # how many words to read from the embedding
+    epochs = 100
     verbosity = 1
-    doc_size = 500
+    doc_size = 100
     optimizer = 'adam'
     fixed_embedding = False
     oversample = False    # balance class distribution by oversampling
@@ -21,3 +23,13 @@ class Defaults(object):
     threshold = False
     test = False
     oov = ''
+    number_classes=37
+    embedding_path="/usr/data/embd/PubMed-and-PMC-w2v.bin"
+    embedding_path = home+"embd/PubMed-and-PMC-w2v.bin"
+    #embedding_path = "/usr/data/embd/PMC_bioASQ.bin"
+    data_name = "hoc" #exp , hoc, mesh
+    scope = "doc" #doc or sen (for document or sentence)
+    input_dir = home+ "multilabel-nn/data/" # super dir where to find the input
+    output_dir = home+ "multilabel-nn/results/" # super dir where to ouput the results
+    input_path = input_dir+scope+"/"+data_name+"/"
+    output_path = output_dir+scope+"/"+data_name+"/"

@@ -148,11 +148,9 @@ def evaluate_binary_labeling(dataitems):
 
 def summarize_classification(results):
     return (
-        'acc: {acc:.2%} auc: {auc:.2%} ap: {ap:.2%} ' +
-        'f: {fscore:.2%} (p:{prec:.1%} r:{rec:.1%} ' +
-        'tp:{tp} fp:{fp} fn:{fn}) ' +
-        'maxf: {maxf-fscore:.2%} (p:{maxf-prec:.1%} r:{maxf-rec:.1%} ' +
-        'th:{maxf-threshold:.2})'
+        'acc: {acc:.2%} ' +
+        'f: {fscore:.2%} (p:{p:.1%} r:{r:.1%} ' +
+        'tp:{tp} fp:{fp} fn:{fn} tn:{tn})'
     ).format(**results)
 
 def evaluate_classification(dataitems):

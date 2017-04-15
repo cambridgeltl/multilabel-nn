@@ -64,9 +64,9 @@ def evaluation_summary(model, dataset, threshold, config):
         dataset.documents.inputs,
         batch_size=config.batch_size
     )
-    mapper = None #if not threshold else make_thresholded_mapper(threshold)
+    mapper = None if not threshold else make_thresholded_mapper(threshold)
     dataset.documents.set_predictions(predictions, mapper=mapper)
-    results = dataset.eval()#evaluate_classification(dataset.documents)
+    results = evaluate_classification(dataset.documents)
     return summarize_classification(results)
 
 def make_thresholded_mapper(threshold):
@@ -77,10 +77,8 @@ def make_thresholded_mapper(threshold):
     return thresholded_mapper
 
 def main(argv):
-    config = cli_settings(['datadir', 'wordvecs', 'index'], Defaults)
-
-    print ("STARTING CLASIFCATION FOR INDEX = " + str(config.index))
-    data = MultiLabelDataReader(config.datadir).load(config.index)#load_dir(config.datadir, config)
+    config = cli_settings(['datadir', 'wordvecs'], Defaults)
+    data = MultiLabelDataReader(config.datadir).load()#load_dir(config.datadir, config)
 
     print ("finished reading data")
     force_oov = set(l.strip() for l in open(config.oov)) if config.oov else None
@@ -136,7 +134,7 @@ def main(argv):
     out = Dense(
         data.documents.target_dim,
         W_regularizer=W_regularizer(config),
-        activation='softmax'
+        activation='sigmoid'
         )(seq)
     model = Model(input=inputs, output=out)
 
@@ -197,13 +195,8 @@ def main(argv):
         )
 
 if __name__ == '__main__':
-
-    print ("number of classes = " + str(Defaults.number_classes))
     home = "/home/sb/"
     sys.argv.append(Defaults.input_path)  # path to data
     sys.argv.append(Defaults.embedding_path)
-    sys.argv.append("0")
-    for i in range(int(Defaults.number_classes)):
-        sys.argv[-1]= str(i)
-        print(str(sys.argv))
-        main(sys.argv)
+
+    sys.exit(main(sys.argv))

@@ -178,11 +178,12 @@ class DocumentEvaluator(EvaluatorCallback):
                                                 results)
 
     def evaluation_results(self):
-        print("Evaluation----------->::  " + str(self.dataset.eval()))
+       # print("Evaluation----------->::  " + self.dataset.name + " "+str(self.dataset.eval()))
         return self.dataset.eval()#evaluate_classification(self.dataset.documents)
 
     def evaluation_summary(self, results):
         return summarize_classification(results)
+        pass
 
 def document_evaluator(dataset, label=None, writer=None, results=None):
     """Return appropriate evaluator callback for dataset."""

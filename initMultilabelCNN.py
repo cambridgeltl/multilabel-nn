@@ -21,8 +21,10 @@ from keras.layers import Input, Embedding, Flatten, Reshape, Dense, Dropout
 from keras.layers import Convolution2D, MaxPooling2D
 from keras.regularizers import l2
 from multiLabelDataReader import MultiLabelDataReader
-
+import hiddenLayerInit
+import theano
 from config import Defaults
+from keras import backend as K
 
 import logging
 
@@ -31,6 +33,8 @@ def W_regularizer(config):
         return l2(config.l2_lambda)
     else:
         return None
+
+
 
 def inputs_and_embeddings(features, config):
     inputs, embeddings = [], []
@@ -64,9 +68,9 @@ def evaluation_summary(model, dataset, threshold, config):
         dataset.documents.inputs,
         batch_size=config.batch_size
     )
-    mapper = None #if not threshold else make_thresholded_mapper(threshold)
+    mapper = None if not threshold else make_thresholded_mapper(threshold)
     dataset.documents.set_predictions(predictions, mapper=mapper)
-    results = dataset.eval()#evaluate_classification(dataset.documents)
+    results = evaluate_classification(dataset.documents)
     return summarize_classification(results)
 
 def make_thresholded_mapper(threshold):
@@ -75,13 +79,26 @@ def make_thresholded_mapper(threshold):
         item.prediction[0] += threshold
         default_prediction_mapper(item)
     return thresholded_mapper
+initWeights= None
+
+def sharedX(X, dtype=theano.config.floatX, name=None):
+    return theano.shared(np.asarray(X, dtype=dtype), name=name)
+    #return theano.shared(X, name=name)
+
+def my_init(shape, dtype=None,name=None):
+    global targets
+    print ("my_init shape = " + str(shape))
+    print ("my_init dtype = " + str(dtype))
+    return sharedX(hiddenLayerInit.initilize(targets,shape))
+    #return K.random_normal(shape, dtype=dtype)
 
 def main(argv):
-    config = cli_settings(['datadir', 'wordvecs', 'index'], Defaults)
-
-    print ("STARTING CLASIFCATION FOR INDEX = " + str(config.index))
-    data = MultiLabelDataReader(config.datadir).load(config.index)#load_dir(config.datadir, config)
-
+    global targets
+    global initWeights
+    config = cli_settings(['datadir', 'wordvecs'], Defaults)
+    data = MultiLabelDataReader(config.datadir).load()#load_dir(config.datadir, config)
+    targets = data.train.get_targets()
+    #initWeights = hiddenLayerInit.initilize(targets)
     print ("finished reading data")
     force_oov = set(l.strip() for l in open(config.oov)) if config.oov else None
     w2v = NormEmbeddingFeature.from_file(config.wordvecs,
@@ -127,16 +144,16 @@ def main(argv):
         )(seq2)
         seq2 = Flatten()(seq2)
         convLayers.append(seq2)
-
+    #inz = lambda shape,dtype:hiddenLayerInit.initilize(data.train.get_targets())
     seq = concat(convLayers)
     if config.drop_prob:
         seq = Dropout(config.drop_prob)(seq)
     for s in config.hidden_sizes:
         seq = Dense(s, activation='relu')(seq)
     out = Dense(
-        data.documents.target_dim,
+        data.documents.target_dim, init=my_init,
         W_regularizer=W_regularizer(config),
-        activation='softmax'
+        activation='sigmoid'
         )(seq)
     model = Model(input=inputs, output=out)
 
@@ -197,13 +214,8 @@ def main(argv):
         )
 
 if __name__ == '__main__':
-
-    print ("number of classes = " + str(Defaults.number_classes))
     home = "/home/sb/"
     sys.argv.append(Defaults.input_path)  # path to data
     sys.argv.append(Defaults.embedding_path)
-    sys.argv.append("0")
-    for i in range(int(Defaults.number_classes)):
-        sys.argv[-1]= str(i)
-        print(str(sys.argv))
-        main(sys.argv)
+
+    sys.exit(main(sys.argv))
