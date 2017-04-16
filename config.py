@@ -1,5 +1,5 @@
 class Defaults(object):
-    home = "/home/sb895/"
+    home = "/home/sb/"
     encoding = 'utf-8'
     filter_sizes = [3,4,5]
     filter_nums = [200,200,200]
