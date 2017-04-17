@@ -47,21 +47,6 @@ def inputs_and_embeddings(features, config):
         embeddings.append(e)
     return inputs, embeddings
 
-def get_best_epoch(results, label, config):
-    """Get index of best epoch based on metric identified in config."""
-    key = '{}/{}'.format(label, config.target_metric)
-    epoch = np.argmax(results[key])
-    value = results[key][epoch]
-    logging.info('best epoch for {}: {} ({})'.format(key, epoch+1, value))
-    return epoch
-
-def set_best_weights(model, weights, results, label, config):
-    """Set best epoch weights based on metric identified in config."""
-    key = '{}/{}'.format(label, config.target_metric)
-    epoch = np.argmax(results[key])
-    value = results[key][epoch]
-    logging.info('best epoch for {}: {} ({})'.format(key, epoch+1, value))
-    model.set_weights(weights[epoch])
 
 def evaluation_summary(model, dataset, threshold, config):
     predictions = model.predict(

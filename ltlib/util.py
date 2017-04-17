@@ -3,6 +3,9 @@ import numpy as np
 from types import GeneratorType
 from itertools import chain, izip_longest
 
+from keras.models import model_from_json
+
+
 def unique(iterable):
     """Return unique values from iterable."""
     seen = set()
@@ -39,3 +42,21 @@ def dict_argmax(d):
     for k, v in d.items():
         if v == m:
             return k
+
+def save_keras(model,path):
+    model_json = model.to_json()
+    with open(path+"model.json", "w") as json_file:
+        json_file.write(model_json)
+    model.save_weights(path+"model.h5")
+    print "saved keras model to: " + path
+
+def load_keras(path):
+    # load json and create model
+    json_file = open(path+'model.json', 'r')
+    loaded_model_json = json_file.read()
+    json_file.close()
+    loaded_model = model_from_json(loaded_model_json)
+    # load weights into new model
+    loaded_model.load_weights(path+"model.h5")
+    print("Loaded model from" + path)
+    return loaded_model

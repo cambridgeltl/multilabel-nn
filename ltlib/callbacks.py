@@ -10,6 +10,7 @@ from evaluation import evaluate_classification, summarize_classification
 from util import unique
 from defaults import defaults
 
+
 class WeightStore(Callback):
     """Stores results of model.get_weights() on epoch end."""
     def __init__(self, weights=None):
@@ -183,7 +184,7 @@ class DocumentEvaluator(EvaluatorCallback):
 
     def evaluation_summary(self, results):
         return summarize_classification(results)
-        pass
+
 
 def document_evaluator(dataset, label=None, writer=None, results=None):
     """Return appropriate evaluator callback for dataset."""

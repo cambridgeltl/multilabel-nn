@@ -12,7 +12,7 @@ from ltlib.docdata import load_dir
 from ltlib.features import NormEmbeddingFeature, FixedWidthInput
 from ltlib.layers import FixedEmbedding, concat
 from ltlib.optimizers import get_optimizer
-from ltlib.callbacks import WeightStore, EpochTimer, document_evaluator
+from ltlib.callbacks import WeightStore, EpochTimer, document_evaluator, EvaluatorCallback, Predictor
 from ltlib.evaluation import evaluate_classification, summarize_classification
 from ltlib.metrics import f1, prec, rec
 
@@ -24,7 +24,45 @@ from multiLabelDataReader import MultiLabelDataReader
 
 from config import Defaults
 
-import logging
+#import logging
+
+import utility
+import ltlib.util
+
+class Ind_document_evaluator(EvaluatorCallback):
+    """Evaluates performance using document-level metrics."""
+
+    def __init__(self, dataset, label=None, writer=None, results=None):
+        super(Ind_document_evaluator, self).__init__(dataset, label, writer,
+                                                results)
+
+        self.bestRes = None
+
+    def evaluation_results(self):
+       # print("Evaluation----------->::  " + self.dataset.name + " "+str(self.dataset.eval()))
+        print ("evaluating dataset:" + self.dataset.name)
+        print ("with: " +str(len(self.dataset.children)))
+        res = self.dataset.eval()#evaluate_classification(self.dataset.documents)
+        print (str(res))
+        if self.bestRes == None or self.bestRes["fscore"] < res["fscore"]:
+            print ("new best F-score: " + str(res["fscore"]))
+            res["best_epoch"] = self.epoch
+            self.bestRes = res
+            utility.writeDictAsStringFile(res, Defaults.output_path+ "out.txt")
+            ltlib.util.save_keras(self.model,Defaults.saved_mod_path)
+        return res
+
+    def evaluation_summary(self, results):
+        print("eval summary")
+        return summarize_classification(results)
+
+def evaluator(dataset, label=None, writer=None, results=None):
+    """Return appropriate evaluator callback for dataset."""
+    callbacks = []
+    print ("evaluating: " + str(dataset.name))
+    callbacks.append(Predictor(dataset.documents))
+    callbacks.append(Ind_document_evaluator(dataset, label=label, writer=writer, results=results))
+
 
 def W_regularizer(config):
     if config.l2_lambda is not None:
@@ -42,22 +80,6 @@ def inputs_and_embeddings(features, config):
         inputs.append(i)
         embeddings.append(e)
     return inputs, embeddings
-
-def get_best_epoch(results, label, config):
-    """Get index of best epoch based on metric identified in config."""
-    key = '{}/{}'.format(label, config.target_metric)
-    epoch = np.argmax(results[key])
-    value = results[key][epoch]
-    logging.info('best epoch for {}: {} ({})'.format(key, epoch+1, value))
-    return epoch
-
-def set_best_weights(model, weights, results, label, config):
-    """Set best epoch weights based on metric identified in config."""
-    key = '{}/{}'.format(label, config.target_metric)
-    epoch = np.argmax(results[key])
-    value = results[key][epoch]
-    logging.info('best epoch for {}: {} ({})'.format(key, epoch+1, value))
-    model.set_weights(weights[epoch])
 
 def evaluation_summary(model, dataset, threshold, config):
     predictions = model.predict(
@@ -77,8 +99,9 @@ def make_thresholded_mapper(threshold):
     return thresholded_mapper
 
 def main(argv):
+    global data
     config = cli_settings(['datadir', 'wordvecs'], Defaults)
-    data = MultiLabelDataReader(config.datadir).load()#load_dir(config.datadir, config)
+    ##load_dir(config.datadir, config)
 
     print ("finished reading data")
     force_oov = set(l.strip() for l in open(config.oov)) if config.oov else None
@@ -92,7 +115,7 @@ def main(argv):
     features = [w2v]
     data.tokens.add_features(features)
     # Summarize word vector featurizer statistics (OOV etc.)
-    logging.info(features[0].summary())
+
     # Create inputs at document level
     data.documents.add_inputs([
         FixedWidthInput(config.doc_size, f['<PADDING>'], f.name)
@@ -138,9 +161,6 @@ def main(argv):
         )(seq)
     model = Model(input=inputs, output=out)
 
-    if config.verbosity != 0:
-        logging.info(model.summary())
-
     optimizer = get_optimizer(config)
     model.compile(
         loss='categorical_crossentropy',
@@ -173,30 +193,55 @@ def main(argv):
         callbacks=callbacks
     )
     # logging.info(history.history)
+def eval_test(modelPath):
+    global data
+    #data = MultiLabelDataReader(Defaults.input_path).load(index)
+    model = ltlib.util.load_keras(modelPath)
+    optimizer = get_optimizer(Defaults)
 
-    for k, values in results.items():
-        s = lambda v: str(v) if not isinstance(v, float) else '{:.4f}'.format(v)
-        logging.info('\t'.join(s(i) for i in [k] + values))
+    print("STARTING TEST")
 
-    evalsets = [data.devel] + ([data.test] if config.test else [])
-    for s in evalsets:
-        logging.info('last epoch, {}: {}'.format(
-            s.name, evaluation_summary(model, s, 0, config))
-        )
-    epoch = get_best_epoch(results, 'devel', config)
-    model.set_weights(weights[epoch])
-    if config.threshold:
-        threshold = results['devel/maxf-threshold'][epoch]
-    else:
-        threshold = 0.0
-    for s in evalsets:
-        logging.info('best devel epoch th {} ({}), {}: {}'.format(
-            threshold, config.target_metric, s.name, evaluation_summary(model, s, threshold, config))
-        )
+
+    force_oov = set(l.strip() for l in open(Defaults.oov)) if Defaults.oov else None
+    w2v = NormEmbeddingFeature.from_file(Defaults.embedding_path,
+                                         max_rank=Defaults.max_vocab_size,
+                                         vocabulary=data.vocabulary,
+                                         force_oov=force_oov,
+                                         name='text')
+    # Add word vector features to tokens
+
+    features = [w2v]
+    data.tokens.add_features(features)
+    # Summarize word vector featurizer statistics (OOV etc.)
+    #    logging.info(features[0].summary())
+    # Create inputs at document level
+    data.documents.add_inputs([
+                                  FixedWidthInput(Defaults.doc_size, f['<PADDING>'], f.name)
+                                  for f in features
+                                  ])
+
+    # Create keras input and embedding for each feature
+    #inputs, embeddings = inputs_and_embeddings(features, Defaults)
+
+    model.compile(
+        loss='categorical_crossentropy',
+        optimizer=optimizer,
+        metrics=['accuracy', f1, prec, rec]
+    )
+    predictions = model.predict(data.test.documents.inputs, batch_size=Defaults.batch_size)
+    #print(str(predictions))
+    data.test.documents.set_predictions(predictions)
+    print ("TEST RESULTS for: " + str(len(predictions)))
+    res = data.test.eval()
+    print(str(res))
+    utility.writeDictAsStringFile(res,Defaults.results_path +"res.txt")
+
+
 
 if __name__ == '__main__':
     home = "/home/sb/"
     sys.argv.append(Defaults.input_path)  # path to data
     sys.argv.append(Defaults.embedding_path)
+    data = MultiLabelDataReader(Defaults.input_dir).load()
 
     sys.exit(main(sys.argv))
