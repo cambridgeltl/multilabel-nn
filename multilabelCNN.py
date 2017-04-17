@@ -12,7 +12,7 @@ from ltlib.docdata import load_dir
 from ltlib.features import NormEmbeddingFeature, FixedWidthInput
 from ltlib.layers import FixedEmbedding, concat
 from ltlib.optimizers import get_optimizer
-from ltlib.callbacks import WeightStore, EpochTimer, document_evaluator, EvaluatorCallback, Predictor
+from ltlib.callbacks import WeightStore, EpochTimer, document_evaluator, EvaluatorCallback, Predictor, CallbackChain
 from ltlib.evaluation import evaluate_classification, summarize_classification
 from ltlib.metrics import f1, prec, rec
 
@@ -29,11 +29,11 @@ from config import Defaults
 import utility
 import ltlib.util
 
-class Ind_document_evaluator(EvaluatorCallback):
+class multi_document_evaluator(EvaluatorCallback):
     """Evaluates performance using document-level metrics."""
 
     def __init__(self, dataset, label=None, writer=None, results=None):
-        super(Ind_document_evaluator, self).__init__(dataset, label, writer,
+        super(multi_document_evaluator, self).__init__(dataset, label, writer,
                                                 results)
 
         self.bestRes = None
@@ -42,7 +42,7 @@ class Ind_document_evaluator(EvaluatorCallback):
        # print("Evaluation----------->::  " + self.dataset.name + " "+str(self.dataset.eval()))
         print ("evaluating dataset:" + self.dataset.name)
         print ("with: " +str(len(self.dataset.children)))
-        res = self.dataset.eval()#evaluate_classification(self.dataset.documents)
+        res = self.dataset.eval(gridForTheshold=True)#evaluate_classification(self.dataset.documents)
         print (str(res))
         if self.bestRes == None or self.bestRes["fscore"] < res["fscore"]:
             print ("new best F-score: " + str(res["fscore"]))
@@ -61,7 +61,8 @@ def evaluator(dataset, label=None, writer=None, results=None):
     callbacks = []
     print ("evaluating: " + str(dataset.name))
     callbacks.append(Predictor(dataset.documents))
-    callbacks.append(Ind_document_evaluator(dataset, label=label, writer=writer, results=results))
+    callbacks.append(multi_document_evaluator(dataset, label=label, writer=writer, results=results))
+    return CallbackChain(callbacks)
 
 
 def W_regularizer(config):
@@ -171,9 +172,10 @@ def main(argv):
     weights, results = [], {}
     callbacks = [
         EpochTimer(),
-        WeightStore(weights),
+        #WeightStore(weights),
         #document_evaluator(data.train, label='train', results=results),
-        document_evaluator(data.devel, label='devel', results=results),
+
+        evaluator(data.devel, label='devel', results=results)
 
     ]
     #if config.test:
@@ -240,8 +242,12 @@ def eval_test(modelPath):
 
 if __name__ == '__main__':
     home = "/home/sb/"
+    utility.createDirIfNotExist(Defaults.saved_mod_path)
+    utility.createDirIfNotExist(Defaults.output_path)
+    utility.createDirIfNotExist(Defaults.pred_path)
+    utility.createDirIfNotExist(Defaults.results_path)
     sys.argv.append(Defaults.input_path)  # path to data
     sys.argv.append(Defaults.embedding_path)
-    data = MultiLabelDataReader(Defaults.input_dir).load()
-
-    sys.exit(main(sys.argv))
+    data = MultiLabelDataReader(Defaults.input_path).load()
+    main(sys.argv)
+    eval_test(Defaults.saved_mod_path)

@@ -22,7 +22,7 @@ from keras.layers import Input, Embedding, Flatten, Reshape, Dense, Dropout
 from keras.layers import Convolution2D, MaxPooling2D
 from keras.regularizers import l2
 from multiLabelDataReader import MultiLabelDataReader
-
+import numpy as np
 from config import Defaults
 
 #import logging
@@ -270,6 +270,7 @@ def eval_test(modelPath,index):
     )
     predictions = model.predict(data.test.documents.inputs, batch_size=Defaults.batch_size)
     #print(str(predictions))
+    utility.writeDictAsStringFile(predictions,Defaults.pred_path)
     data.test.documents.set_predictions(predictions)
     print ("TEST RESULTS for: " + str(len(predictions)))
     res = data.test.eval()
@@ -277,9 +278,13 @@ def eval_test(modelPath,index):
     utility.writeDictAsStringFile(res,Defaults.results_path + str(index)+".txt")
 
 
-
-
-
+def aggrigate_results():
+    resArray = []
+    for i in range(int(Defaults.number_classes)):
+        filePath = Defaults.output_path+str(i)+".txt"
+        r =utility.readDictFromStringFile(filePath)
+        resArray.append([r["tp"],r["fp"],r["tn"],r["fn"]])
+    return ltlib.util.calculate_micro_scores(np.array(resArray).transpose())
 
 
 if __name__ == '__main__':
@@ -298,12 +303,17 @@ if __name__ == '__main__':
         Defaults.index = i
         utility.createDirIfNotExist(Defaults.saved_mod_path)
         utility.createDirIfNotExist(Defaults.output_path)
-        data = MultiLabelDataReader(Defaults.input_path).load(Defaults.index)
+        utility.createDirIfNotExist(Defaults.pred_path)
+        #data = MultiLabelDataReader(Defaults.input_path).load(Defaults.index)
         print("finished reading data")
         sys.argv[-1]= str(i)
         print(str(sys.argv))
-        main(sys.argv)
-        eval_test(Defaults.saved_mod_path,i)
+        #main(sys.argv)
+        #eval_test(Defaults.saved_mod_path,i)
+
+    print(aggrigate_results())
+
+
 
 
 
