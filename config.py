@@ -2,8 +2,8 @@ class Defaults(object):
     home = "/home/sb/"
     encoding = 'utf-8'
     filter_sizes = [3,4,5]
-    filter_nums = [100,100,100]
-    sigmoid_threshold = 0.7
+    filter_nums = [200,200,200]
+    sigmoid_threshold = 0.5
     hidden_sizes = []
     batch_size = 50
     drop_prob = 0.5    # None for no dropout
@@ -13,7 +13,7 @@ class Defaults(object):
     token_regex = r'([^\W_]+|.)'    # fine-grained tokenization
     random_seed = 0xC001533D
     max_vocab_size = 2000000  # how many words to read from the embedding
-    epochs = 20
+    epochs = 100
     verbosity = 1
     optimizer = 'adam'
     fixed_embedding = False
@@ -29,9 +29,10 @@ class Defaults(object):
 
 
     data_name = "hoc" #exp , hoc, mesh
-    scope = "sen" #doc or sen (for document or sentence)
+    scope = "doc" #doc or sen (for document or sentence)
 
-    expName= "ind"
+    expNames = ["ind","multi","init_UB"]
+    expName= "init_UB"
     if data_name=="hoc": number_classes = 37
     if data_name == "exp": number_classes = 32
     if scope =="doc":doc_size = 500
@@ -41,5 +42,10 @@ class Defaults(object):
     #results_dir = home+ "multilabel-nn/results/" # super dir where to ouput the results
     input_path = input_dir+scope+"/"+data_name+"/"
     output_path = home+ "multilabel-nn/out/" +scope+"/"+data_name+"/"+expName+"/"
+    pred_path = home + "multilabel-nn/pred/" + scope + "/" + data_name + "/" + expName + "/"
     results_path = home+"multilabel-nn/res/"+scope+"/"+data_name+"/"+expName+"/"
     saved_mod_path = home + "multilabel-nn/saved_mod/" + scope + "/" + data_name + "/"+expName+"/"
+
+    sigmoid_t_grid_start=0.05
+    sigmoid_t_grid_stop = 0.95
+    sigmoid_t_grid_step=0.05

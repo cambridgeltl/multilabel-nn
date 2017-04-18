@@ -489,6 +489,9 @@ class Dataset(TreeDataItem):
 
     def get_targets(self):
         return [child.get_target() for child in self.children]
+
+    def get_predictions(self):
+        return [child.prediction for child in self.children]
     #calc p,r,f
     def eval(self, sigmoid_t=None):
         if self.children[0].eval() == None: return

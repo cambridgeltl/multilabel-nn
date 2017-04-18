@@ -5,6 +5,8 @@ from __future__ import print_function
 import sys
 import numpy as np
 
+import ltlib
+import utility
 from ltlib import filelog
 
 from ltlib.settings import cli_settings
@@ -12,7 +14,7 @@ from ltlib.docdata import load_dir
 from ltlib.features import NormEmbeddingFeature, FixedWidthInput
 from ltlib.layers import FixedEmbedding, concat
 from ltlib.optimizers import get_optimizer
-from ltlib.callbacks import WeightStore, EpochTimer, document_evaluator
+from ltlib.callbacks import WeightStore, EpochTimer, document_evaluator, EvaluatorCallback, Predictor, CallbackChain
 from ltlib.evaluation import evaluate_classification, summarize_classification
 from ltlib.metrics import f1, prec, rec
 
@@ -47,24 +49,62 @@ def inputs_and_embeddings(features, config):
         embeddings.append(e)
     return inputs, embeddings
 
+#
+# def evaluation_summary(model, dataset, threshold, config):
+#     predictions = model.predict(
+#         dataset.documents.inputs,
+#         batch_size=config.batch_size
+#     )
+#     mapper = None if not threshold else make_thresholded_mapper(threshold)
+#     dataset.documents.set_predictions(predictions, mapper=mapper)
+#     results = evaluate_classification(dataset.documents)
+#     return summarize_classification(results)
+#
+# def make_thresholded_mapper(threshold):
+#     from ltlib.data import default_prediction_mapper
+#     def thresholded_mapper(item):
+#         item.prediction[0] += threshold
+#         default_prediction_mapper(item)
+#     return thresholded_mapper
+# initWeights= None
+class multi_document_evaluator(EvaluatorCallback):
+    """Evaluates performance using document-level metrics."""
 
-def evaluation_summary(model, dataset, threshold, config):
-    predictions = model.predict(
-        dataset.documents.inputs,
-        batch_size=config.batch_size
-    )
-    mapper = None if not threshold else make_thresholded_mapper(threshold)
-    dataset.documents.set_predictions(predictions, mapper=mapper)
-    results = evaluate_classification(dataset.documents)
-    return summarize_classification(results)
+    def __init__(self, dataset, label=None, writer=None, results=None):
+        super(multi_document_evaluator, self).__init__(dataset, label, writer,
+                                                results)
 
-def make_thresholded_mapper(threshold):
-    from ltlib.data import default_prediction_mapper
-    def thresholded_mapper(item):
-        item.prediction[0] += threshold
-        default_prediction_mapper(item)
-    return thresholded_mapper
-initWeights= None
+        self.bestRes = None
+
+    def evaluation_results(self):
+       # print("Evaluation----------->::  " + self.dataset.name + " "+str(self.dataset.eval()))
+        print ("evaluating dataset:" + self.dataset.name)
+        print ("with: " +str(len(self.dataset.children)))
+
+        for sigmoid_t in np.arange(Defaults.sigmoid_t_grid_start,Defaults.sigmoid_t_grid_stop,Defaults.sigmoid_t_grid_step):
+            res = self.dataset.eval(sigmoid_t=sigmoid_t)#evaluate_classification(self.dataset.documents)
+            if self.bestRes == None or self.bestRes["fscore"] < res["fscore"]:
+                res["best_epoch"] = self.epoch
+                res["best_sigmoid_t"] = sigmoid_t
+                self.bestRes = res
+                print("new best F-score: " + str(res["fscore"]))
+                print("best sigmoid threshold: " + str(res["best_sigmoid_t"]))
+                utility.writeDictAsStringFile(res, Defaults.output_path+ "out.txt")
+                ltlib.util.save_keras(self.model,Defaults.saved_mod_path)
+        return res
+
+    def evaluation_summary(self, results):
+        print("eval summary")
+        return summarize_classification(results)
+
+def evaluator(dataset, label=None, writer=None, results=None):
+    """Return appropriate evaluator callback for dataset."""
+    callbacks = []
+    print ("evaluating: " + str(dataset.name))
+    callbacks.append(Predictor(dataset.documents))
+    callbacks.append(multi_document_evaluator(dataset, label=label, writer=writer, results=results))
+    return CallbackChain(callbacks)
+
 
 def sharedX(X, dtype=theano.config.floatX, name=None):
     return theano.shared(np.asarray(X, dtype=dtype), name=name)
@@ -80,6 +120,7 @@ def my_init(shape, dtype=None,name=None):
 def main(argv):
     global targets
     global initWeights
+    global model
     config = cli_settings(['datadir', 'wordvecs'], Defaults)
     data = MultiLabelDataReader(config.datadir).load()#load_dir(config.datadir, config)
     targets = data.train.get_targets()
@@ -155,14 +196,15 @@ def main(argv):
     weights, results = [], {}
     callbacks = [
         EpochTimer(),
-        WeightStore(weights),
-        #document_evaluator(data.train, label='train', results=results),
-        document_evaluator(data.devel, label='devel', results=results),
+        # WeightStore(weights),
+        # document_evaluator(data.train, label='train', results=results),
+
+        evaluator(data.devel, label='devel', results=results)
 
     ]
-    #if config.test:
-        #callbacks.append(document_evaluator(data.test, label='test',
-     #                                       results=results))
+    # if config.test:
+    # callbacks.append(document_evaluator(data.test, label='test',
+    #                                       results=results))
 
     hist = model.fit(
         data.train.documents.inputs,
@@ -178,29 +220,62 @@ def main(argv):
     )
     # logging.info(history.history)
 
-    for k, values in results.items():
-        s = lambda v: str(v) if not isinstance(v, float) else '{:.4f}'.format(v)
-        logging.info('\t'.join(s(i) for i in [k] + values))
 
-    evalsets = [data.devel] + ([data.test] if config.test else [])
-    for s in evalsets:
-        logging.info('last epoch, {}: {}'.format(
-            s.name, evaluation_summary(model, s, 0, config))
-        )
-    epoch = get_best_epoch(results, 'devel', config)
-    model.set_weights(weights[epoch])
-    if config.threshold:
-        threshold = results['devel/maxf-threshold'][epoch]
-    else:
-        threshold = 0.0
-    for s in evalsets:
-        logging.info('best devel epoch th {} ({}), {}: {}'.format(
-            threshold, config.target_metric, s.name, evaluation_summary(model, s, threshold, config))
-        )
+def eval_test(modelPath):
+    global data
+    # data = MultiLabelDataReader(Defaults.input_path).load(index)
+    #model = ltlib.util.load_keras(modelPath)
+    model.load_weights(modelPath + "model.h5")
+    optimizer = get_optimizer(Defaults)
 
+    print("STARTING TEST")
+
+    force_oov = set(l.strip() for l in open(Defaults.oov)) if Defaults.oov else None
+    w2v = NormEmbeddingFeature.from_file(Defaults.embedding_path,
+                                         max_rank=Defaults.max_vocab_size,
+                                         vocabulary=data.vocabulary,
+                                         force_oov=force_oov,
+                                         name='text')
+    # Add word vector features to tokens
+
+    features = [w2v]
+    data.tokens.add_features(features)
+    # Summarize word vector featurizer statistics (OOV etc.)
+    #    logging.info(features[0].summary())
+    # Create inputs at document level
+    data.documents.add_inputs([
+                                  FixedWidthInput(Defaults.doc_size, f['<PADDING>'], f.name)
+                                  for f in features
+                                  ])
+
+    # Create keras input and embedding for each feature
+    # inputs, embeddings = inputs_and_embeddings(features, Defaults)
+
+    model.compile(
+        loss='categorical_crossentropy',
+        optimizer=optimizer,
+        metrics=['accuracy', f1, prec, rec]
+    )
+    predictions = model.predict(data.test.documents.inputs, batch_size=Defaults.batch_size)
+    # print(str(predictions))
+    data.test.documents.set_predictions(predictions)
+    print("TEST RESULTS for: " + str(len(predictions)))
+    best_sigmoid = utility.readDictFromStringFile(Defaults.output_path + "out.txt")["best_sigmoid_t"]
+    res = data.test.eval(sigmoid_t=best_sigmoid)
+    res["sigmoid_t"] = best_sigmoid
+    print(str(res))
+    np.save(Defaults.pred_path + "pred", data.test.get_predictions())
+    utility.writeDictAsStringFile(res, Defaults.results_path + "res.txt")
+
+model = None
 if __name__ == '__main__':
     home = "/home/sb/"
+    utility.createDirIfNotExist(Defaults.saved_mod_path)
+    utility.createDirIfNotExist(Defaults.output_path)
+    utility.createDirIfNotExist(Defaults.pred_path)
+    utility.createDirIfNotExist(Defaults.results_path)
     sys.argv.append(Defaults.input_path)  # path to data
     sys.argv.append(Defaults.embedding_path)
-
-    sys.exit(main(sys.argv))
+    data = MultiLabelDataReader(Defaults.input_path).load()
+    main(sys.argv)
+    eval_test(Defaults.saved_mod_path)

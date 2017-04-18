@@ -85,22 +85,22 @@ def inputs_and_embeddings(features, config):
         embeddings.append(e)
     return inputs, embeddings
 
-def evaluation_summary(model, dataset, threshold, config):
-    predictions = model.predict(
-        dataset.documents.inputs,
-        batch_size=config.batch_size
-    )
-    mapper = None if not threshold else make_thresholded_mapper(threshold)
-    dataset.documents.set_predictions(predictions, mapper=mapper)
-    results = evaluate_classification(dataset.documents)
-    return summarize_classification(results)
-
-def make_thresholded_mapper(threshold):
-    from ltlib.data import default_prediction_mapper
-    def thresholded_mapper(item):
-        item.prediction[0] += threshold
-        default_prediction_mapper(item)
-    return thresholded_mapper
+# def evaluation_summary(model, dataset, threshold, config):
+#     predictions = model.predict(
+#         dataset.documents.inputs,
+#         batch_size=config.batch_size
+#     )
+#     mapper = None if not threshold else make_thresholded_mapper(threshold)
+#     dataset.documents.set_predictions(predictions, mapper=mapper)
+#     results = evaluate_classification(dataset.documents)
+#     return summarize_classification(results)
+#
+# def make_thresholded_mapper(threshold):
+#     from ltlib.data import default_prediction_mapper
+#     def thresholded_mapper(item):
+#         item.prediction[0] += threshold
+#         default_prediction_mapper(item)
+#     return thresholded_mapper
 
 def main(argv):
     global data
@@ -241,6 +241,7 @@ def eval_test(modelPath):
     res = data.test.eval(sigmoid_t=best_sigmoid)
     res["sigmoid_t"] = best_sigmoid
     print(str(res))
+    np.save(Defaults.pred_path + "pred",data.test.get_predictions())
     utility.writeDictAsStringFile(res,Defaults.results_path +"res.txt")
 
 
