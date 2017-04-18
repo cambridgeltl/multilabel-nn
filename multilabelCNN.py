@@ -42,14 +42,17 @@ class multi_document_evaluator(EvaluatorCallback):
        # print("Evaluation----------->::  " + self.dataset.name + " "+str(self.dataset.eval()))
         print ("evaluating dataset:" + self.dataset.name)
         print ("with: " +str(len(self.dataset.children)))
-        res = self.dataset.eval(gridForTheshold=True)#evaluate_classification(self.dataset.documents)
-        print (str(res))
-        if self.bestRes == None or self.bestRes["fscore"] < res["fscore"]:
-            print ("new best F-score: " + str(res["fscore"]))
-            res["best_epoch"] = self.epoch
-            self.bestRes = res
-            utility.writeDictAsStringFile(res, Defaults.output_path+ "out.txt")
-            ltlib.util.save_keras(self.model,Defaults.saved_mod_path)
+
+        for sigmoid_t in np.arange(Defaults.sigmoid_t_grid_start,Defaults.sigmoid_t_grid_stop,Defaults.sigmoid_t_grid_step):
+            res = self.dataset.eval(sigmoid_t=sigmoid_t)#evaluate_classification(self.dataset.documents)
+            if self.bestRes == None or self.bestRes["fscore"] < res["fscore"]:
+                res["best_epoch"] = self.epoch
+                res["best_sigmoid_t"] = sigmoid_t
+                self.bestRes = res
+                print("new best F-score: " + str(res["fscore"]))
+                print("best sigmoid threshold: " + str(res["best_sigmoid_t"]))
+                utility.writeDictAsStringFile(res, Defaults.output_path+ "out.txt")
+                ltlib.util.save_keras(self.model,Defaults.saved_mod_path)
         return res
 
     def evaluation_summary(self, results):
@@ -234,7 +237,9 @@ def eval_test(modelPath):
     #print(str(predictions))
     data.test.documents.set_predictions(predictions)
     print ("TEST RESULTS for: " + str(len(predictions)))
-    res = data.test.eval()
+    best_sigmoid = utility.readDictFromStringFile(Defaults.output_path+"out.txt")["best_sigmoid_t"]
+    res = data.test.eval(sigmoid_t=best_sigmoid)
+    res["sigmoid_t"] = best_sigmoid
     print(str(res))
     utility.writeDictAsStringFile(res,Defaults.results_path +"res.txt")
 

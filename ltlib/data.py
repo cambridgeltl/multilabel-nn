@@ -1,6 +1,8 @@
 import numpy as np
 
 from itertools import chain
+
+import ltlib
 from config import Defaults
 from bidict import Bidict
 
@@ -451,6 +453,7 @@ class Document(TreeDataItem):
         if (len(self.target) != len(self.prediction)):
             raise BaseException("the length of target %d is not equal to length of prediction %d" % (
             len(self.target), len(self.prediction)))
+
         if self._target_indx == None:
             return self._eval_joint()
         else:
@@ -487,43 +490,17 @@ class Dataset(TreeDataItem):
     def get_targets(self):
         return [child.get_target() for child in self.children]
     #calc p,r,f
-    def eval(self):
-        if self.children[0].eval()== None: return
+    def eval(self, sigmoid_t=None):
+        if self.children[0].eval() == None: return
+        if (sigmoid_t != None):
+            for child in self.children:
+                child.set_prediction_by_threshold(sigmoid_t)
+
         tot =np.zeros(self.children[0].eval().shape)
         for doc in self.children:
             tot += doc.eval()
         tot = tot.transpose()
-
-        #print str(tot)
-        p = tot[0]/(tot[0]+tot[1])
-        r = tot[0]/(tot[0]+tot[3])
-        f = 2.0*p*r / (p + r)
-        a= (tot[0]+tot[2]) / (tot[0] + tot[1] + tot[2] +tot[3])
-        s = tot[0] + tot[1] + tot[2] + tot[3]
-        tp = np.sum(tot[0])
-        fp = np.sum(tot[1])
-        tn = np.sum(tot[2])
-        fn = np.sum(tot[3])
-        p_micro = tp/(tp+fp)
-        r_micro = tp/(tp+fn)
-        f_micro = 2*p_micro*r_micro/(p_micro+r_micro)
-        #print("tot: " + str(tot))
-        print("f: "+ str(f_micro))
-        print("r: "+ str(r_micro))
-        print("p: "+ str(p_micro))
-        print("a: "+ str(np.average(a)))
-        #print("s: "+ str(s))
-
-        res = {}
-        res["acc"] = np.average(a)
-        res["fscore"] = f_micro#np.average(f)
-        res["p"] = p_micro#np.average(p)
-        res["r"] = r_micro#np.average(r)
-        res["tp"] = tp#np.average(tot[0])
-        res["fp"] = fp#np.average(tot[1])
-        res["tn"] = tn#np.average(tot[2])
-        res["fn"] = fn#np.average(tot[3])
-        return res
+        return ltlib.util.calculate_micro_scores(tot)
 
 
 

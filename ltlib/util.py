@@ -60,3 +60,36 @@ def load_keras(path):
     loaded_model.load_weights(path+"model.h5")
     print("Loaded model from" + path)
     return loaded_model
+
+
+def calculate_micro_scores(tot):
+    p = tot[0] / (tot[0] + tot[1])
+    r = tot[0] / (tot[0] + tot[3])
+    f = 2.0 * p * r / (p + r)
+    a = (tot[0] + tot[2]) / (tot[0] + tot[1] + tot[2] + tot[3])
+    s = tot[0] + tot[1] + tot[2] + tot[3]
+    tp = np.sum(tot[0])
+    fp = np.sum(tot[1])
+    tn = np.sum(tot[2])
+    fn = np.sum(tot[3])
+    p_micro = tp / (tp + fp)
+    r_micro = tp / (tp + fn)
+    f_micro = 2 * p_micro * r_micro / (p_micro + r_micro)
+    # print("tot: " + str(tot))
+    #print("f: " + str(f_micro))
+    #print("r: " + str(r_micro))
+    #print("p: " + str(p_micro))
+    #print("a: " + str(np.average(a)))
+    # print("s: "+ str(s))
+    res = {}
+    res["acc"] = np.average(a)
+    res["fscore"] = f_micro  # np.average(f)
+    res["p"] = p_micro  # np.average(p)
+    res["r"] = r_micro  # np.average(r)
+    res["tp"] = tp  # np.average(tot[0])
+    res["fp"] = fp  # np.average(tot[1])
+    res["tn"] = tn  # np.average(tot[2])
+    res["fn"] = fn  # np.average(tot[3])
+    return res
+
+
